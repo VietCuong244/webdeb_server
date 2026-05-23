@@ -1,5 +1,5 @@
 from database import Base
-from sqlalchemy import Column, Integer, String, Boolean, CheckConstraint , UniqueConstraint, DateTime, text, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean,  DateTime, text, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
@@ -18,7 +18,7 @@ class Novel(Base):
     novel_views = Column(Integer, nullable=False, default=0)
     novel_downloads = Column(Integer, nullable=False, default=0)
     
-    novel_isprivate = Column(Boolean, nullable=False, default=True)
+    novel_isprivate = Column(Boolean, nullable=False, default=False)
     novel_createdat = Column(Integer, nullable=True)
     novel_updatedat = Column(DateTime(timezone=True), nullable=False, server_default=text("now()"), onupdate=lambda: datetime.now(timezone.utc))
 

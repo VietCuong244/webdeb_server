@@ -49,20 +49,5 @@ def verify_access_token(token: str, credentials_exception):
         raise credentials_exception
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession=Depends(get_db)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    payload = verify_access_token(token, credentials_exception)
-    user_email: str = payload.get("user_email")
-    if user_email is None:
-        raise credentials_exception
-    token_data = TokenData(user_email=user_email)
-    
-    user = (await db.execute(select(User).where(User.user_email == token_data.user_email))).scalar()
-    if user is None:
-        raise credentials_exception
-    return user
+
 # endregion
