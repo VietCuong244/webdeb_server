@@ -8,24 +8,15 @@ import uuid
 class Document(Base):
     __tablename__ = "documents"
     doc_id        = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    doc_novel_id  = Column(UUID(as_uuid=True), ForeignKey("novels.novel_id", ondelete="CASCADE"), nullable=True)
     doc_title     = Column(String, nullable=False)
     doc_source    = Column(String, nullable=True)   # "novel" | "upload"
-    doc_content   = Column(Text, nullable=False)
-    doc_fts       = Column(
-        TSVECTOR,
-        Computed(
-            "setweight(to_tsvector('simple', coalesce(doc_title, '')), 'A') || "
-            "setweight(to_tsvector('simple', coalesce(doc_content, '')), 'B')",
-            persisted=True,
-        ),
-    )
+    doc_fileurl   = Column(String, nullable=True)
+    doc_markdownurl = Column(String, nullable=True)
     doc_createdat = Column(DateTime(timezone=True), server_default=text("now()"))
 
+    novel = relationship("Novel", back_populates="documents")
     embeddings = relationship("Embedding", back_populates="document", cascade="all, delete-orphan")
-
-    __table_args__ = (
-        Index("ix_documents_doc_fts", "doc_fts", postgresql_using="gin"),
-    )
 
 class Embedding(Base):
     __tablename__ = "embeddings"
@@ -33,5 +24,13 @@ class Embedding(Base):
     doc_id     = Column(UUID(as_uuid=True), ForeignKey("documents.doc_id"), nullable=False)
     emb_vector = Column(Vector(768))
     emb_chunk  = Column(Text, nullable=False)
+    emb_fts    = Column(
+        TSVECTOR,
+        Computed("to_tsvector('simple', coalesce(emb_chunk, ''))", persisted=True),
+    )
 
     document = relationship("Document", back_populates="embeddings")
+
+    __table_args__ = (
+        Index("ix_embeddings_emb_fts", "emb_fts", postgresql_using="gin"),
+    )

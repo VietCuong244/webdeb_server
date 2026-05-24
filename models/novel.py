@@ -25,6 +25,7 @@ class Novel(Base):
     uploader = relationship("User", back_populates="novels")
     tags = relationship("Tag", secondary="noveltotags", back_populates="novels")
     reports = relationship("Report", back_populates="novel", cascade="all, delete-orphan")
+    documents = relationship("Document", back_populates="novel", cascade="all, delete-orphan")
     
     
 class Tag(Base):
