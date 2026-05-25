@@ -1,9 +1,9 @@
 from database import Base
-from sqlalchemy import Column, Integer, String, Boolean, CheckConstraint, DateTime, text, ForeignKey
+from sqlalchemy import Column, String, CheckConstraint, DateTime, text, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
+
 
 class Report(Base):
     __tablename__ = "reports"  

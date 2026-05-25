@@ -1,9 +1,8 @@
 from database import Base
-from sqlalchemy import Column, Integer, String, Boolean, CheckConstraint, DateTime, text
+from sqlalchemy import Column, String, Boolean, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import uuid
-from datetime import datetime, timezone
 
 class User(Base):
     __tablename__ = "users"
@@ -16,7 +15,7 @@ class User(Base):
     user_avatarurl = Column(String, nullable=False, default="https://images.vexels.com/media/users/3/143350/isolated/preview/150164edc7f28a716bfceae9dd58cf2c-coolface-trollface-meme-by-vexels.png")
     
     
-    user_islocked = Column(Boolean, nullable=False, default=True)
+    user_islocked = Column(Boolean, nullable=False, default=False)
 
     novels = relationship("Novel", back_populates="uploader")
     reports = relationship("Report", back_populates="user", cascade="all, delete-orphan")

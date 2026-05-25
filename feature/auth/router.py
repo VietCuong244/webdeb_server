@@ -6,13 +6,13 @@ from models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from .schema import UserSignUp
-from feature.auth.service import get_current_user
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+
+router_auth = APIRouter(prefix="/auth", tags=["auth"])
 
 
 # region User Registration
-@router.post("/newadmin")
+@router_auth.post("/newadmin")
 async def create_admin(admin_data: UserSignUp, db: AsyncSession=Depends(get_db)):
     # check existing mail n user
     existing_email = (await db.execute(select(User).where(User.user_email == admin_data.email))).scalar()
@@ -40,7 +40,7 @@ async def create_admin(admin_data: UserSignUp, db: AsyncSession=Depends(get_db))
             "user_role": new_admin.user_role}
 
 
-@router.post("/signup")
+@router_auth.post("/signup")
 async def signup(user_data: UserSignUp, db: AsyncSession=Depends(get_db)):
     
     # check existing mail n user
@@ -68,10 +68,12 @@ async def signup(user_data: UserSignUp, db: AsyncSession=Depends(get_db)):
 
 # endregion
 
+
+
 # region User Login
 
 
-@router.post("/login", description="Using email and password to login")
+@router_auth.post("/login", description="Using email and password to login")
 async def login(user_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession=Depends(get_db)):
     
     {
@@ -80,23 +82,19 @@ async def login(user_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
     }
     # check user exist
     user = (await db.execute(select(User).where(User.user_email == user_data.username))).scalar()
+    
     if not user:
         raise HTTPException(status_code=400, detail="Invalid email or password")
 
     if not service.verify_password(user_data.password, user.user_hashedpassword):
         raise HTTPException(status_code=400, detail="Invalid email or password")
+    
+    if user.user_islocked:
+        raise HTTPException(status_code=403, detail="Account is locked. Please contact support.")
     # create token
     access_token = service.create_access_token(data={"user_name":user.user_name,
                                                      "user_email":user.user_email,
                                                      "user_role":user.user_role})
     return {"access_token": access_token, "token_type": "bearer"}
-# endregion
 
-# region check current user
-@router.get("/me")
-async def read_current_user(current_user: User = Depends(get_current_user)):
-    return {"user_name": current_user.user_name,
-            "user_email": current_user.user_email,
-            "user_id": current_user.user_id,
-            "user_role": current_user.user_role}
-# endregion
+# endregion 
