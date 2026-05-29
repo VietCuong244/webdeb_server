@@ -13,6 +13,8 @@ class Document(Base):
     doc_source    = Column(String, nullable=True)   # "novel" | "upload"
     doc_fileurl   = Column(String, nullable=True)
     doc_markdownurl = Column(String, nullable=True)
+    doc_status    = Column(String, nullable=False, default="pending")
+    doc_error     = Column(Text, nullable=True)
     doc_createdat = Column(DateTime(timezone=True), server_default=text("now()"))
 
     novel = relationship("Novel", back_populates="documents")
