@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from feature.auth.schema import TokenData
+from uuid import UUID
 from feature.auth.service import verify_access_token
 from models.user import User
 
@@ -41,3 +42,7 @@ async def require_admin(current_user: User = Depends(require_unlocked_user)):
         raise HTTPException(status_code=403, detail="Admin privileges required")
     return current_user
 
+async def require_owner_or_admin(user_id: UUID, current_user: User = Depends(require_unlocked_user)):
+    if current_user.user_role == "admin" or current_user.user_id == user_id:
+        return current_user
+    raise HTTPException(status_code=403, detail="Owner or admin privileges required")

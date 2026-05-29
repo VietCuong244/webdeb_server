@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from feature.auth.service import hash_password
-from feature.user.service import get_current_user
+from feature.user.service import get_current_user, require_admin
+from models.novel import Novel
 from models.user import User
 from database import get_db
-from feature.user.schema import UserUpdate
+from feature.user.schema import *
 
 router_user = APIRouter(prefix="/user", tags=["user"])
 
@@ -48,3 +50,33 @@ async def update_current_user(user_data: UserUpdate, db: AsyncSession = Depends(
 
 
 # endregion
+
+
+# region user information
+@router_user.get("/avatar/{user_id}/novels")
+async def get_user_avatar_and_name(user_id: UUID, db: AsyncSession = Depends(get_db)):
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"user_name": user.user_name,
+            "user_avatar": user.avatar_url}
+
+@router_user.get("/{user_id}")
+async def read_user_info(user_id: UUID,db: AsyncSession = Depends(get_db)):
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user_novels = await db.execute(select(Novel).where(Novel.novel_user == user_id))
+    return {"user_name": user.user_name,
+            "user_email": user.user_email,
+            "user_id": user.user_id,
+            "user_role": user.user_role,
+            "user_novels": [novel for novel in user_novels.scalars()]}
+
+
+
+
+
+# endregion
+
+

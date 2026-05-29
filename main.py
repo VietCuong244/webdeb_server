@@ -1,7 +1,9 @@
 from feature.auth.router import router_auth
 from feature.user.router import router_user
 from feature.tag.router import router_tag
+from feature.novel.router import router_novel
 from feature.upload.router import router_upload
+
 from feature.tag.service import seed_default_tags
 import models
 from database import SessionLocal, engine, Base
@@ -13,6 +15,7 @@ app.include_router(router_auth)
 app.include_router(router_user)
 app.include_router(router_tag)
 app.include_router(router_upload)
+app.include_router(router_novel)
 
 
 @app.on_event("startup")
@@ -34,6 +37,14 @@ async def startup():
         await conn.execute(text("""
             ALTER TABLE documents
             ADD COLUMN IF NOT EXISTS doc_novel_id uuid
+        """))
+        await conn.execute(text("""
+            ALTER TABLE documents
+            ADD COLUMN IF NOT EXISTS doc_status varchar NOT NULL DEFAULT 'pending'
+        """))
+        await conn.execute(text("""
+            ALTER TABLE documents
+            ADD COLUMN IF NOT EXISTS doc_error text
         """))
         await conn.execute(text("""
             DO $$

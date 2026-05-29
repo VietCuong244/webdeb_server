@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+asyncpg
+python-dotenv
+pydantic
+email-validator
+python-multipart
+bcrypt
+python-jose[cryptography]
+pgvector
+PyMuPDF
+pymupdf4llm
