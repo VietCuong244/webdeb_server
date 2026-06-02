@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
-from feature.user.service import require_admin
+from feature.novel.schema import NovelBase
+from feature.user.service import require_admin, require_document_owner_or_admin, require_novel_owner_or_admin
 from database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.document import Document
 from models.novel import Novel, Tag
-from models.user import User
 from uuid import UUID
 
 router_novel = APIRouter(prefix="/novel", tags=["novel"])
@@ -30,14 +30,25 @@ async def get_novel_info(novel_id: UUID, db: AsyncSession = Depends(get_db)):
     novel = await db.get(Novel, novel_id)
     if not novel:
         raise HTTPException(status_code=404, detail="Novel not found")
+    tags = await db.execute(select(Tag).join(Novel.tags).where(Novel.novel_id == novel_id))
+    tags = tags.scalars().all()
     return {"novel_title": novel.novel_title,
             "novel_author": novel.novel_author,
-            "novel_descriptionurl": novel.novel_descriptionurl,
+            "novel_description": novel.novel_description,
             "novel_coverurl": novel.novel_coverurl,
-            "novel_series": novel.novel_series,}
+            "novel_series": novel.novel_series,
+            "tags": 
+                [
+                    {
+                        "tag_id": tags.tag_id,
+                        "tag_name": tags.tag_name
+                    }
+                    for tags in tags
+                ]
+            }
     
     
-@router_novel.get("/{novel_id}")
+@router_novel.get("/content/{novel_id}")
 async def get_novel_by_id(novel_id: UUID, db: AsyncSession = Depends(get_db)):
     result  = await db.execute(select(Novel).where(Novel.novel_id == novel_id))
     novel = result.scalar_one_or_none()
@@ -49,7 +60,7 @@ async def get_novel_by_id(novel_id: UUID, db: AsyncSession = Depends(get_db)):
         "novel_id": novel.novel_id,
         "novel_title": novel.novel_title,
         "novel_author": novel.novel_author,
-        "novel_descriptionurl": novel.novel_descriptionurl,
+        "novel_description": novel.novel_description,
         "novel_coverurl": novel.novel_coverurl,
         "novel_series": novel.novel_series,
         "documents": 
@@ -61,4 +72,43 @@ async def get_novel_by_id(novel_id: UUID, db: AsyncSession = Depends(get_db)):
             }
             if doc else None
     }
+    
+    
+@router_novel.delete("/{novel_id}")
+async def delete_novel(novel_id: UUID, current_user = Depends(require_novel_owner_or_admin), db: AsyncSession = Depends(get_db)):
+    novel = await db.get(Novel, novel_id)
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found") 
+    
+    await db.delete(novel)
+    await db.commit()
+    return {"detail": "Novel deleted successfully"}
 
+
+@router_novel.put("/{novel_id}")
+async def update_novel(novel_id: UUID, novel_data: NovelBase, current_user = Depends(require_novel_owner_or_admin), db: AsyncSession = Depends(get_db)):
+    novel = await db.get(Novel, novel_id)
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+    
+    
+    novel.novel_title = novel_data.novel_title if novel_data.novel_title is not None else novel.novel_title
+    novel.novel_author = novel_data.novel_author if novel_data.novel_author is not None else novel.novel_author
+    novel.novel_description = novel_data.novel_description if novel_data.novel_description is not None else novel.novel_description
+    novel.novel_coverurl = novel_data.novel_coverurl if novel_data.novel_coverurl is not None else novel.novel_coverurl
+    novel.novel_series = novel_data.novel_series if novel_data.novel_series is not None else novel.novel_series
+    novel.novel_isprivate = novel_data.novel_isprivate if novel_data.novel_isprivate is not None else novel.novel_isprivate
+    
+    if novel_data.tags is not None:
+        tag_result = await db.execute(
+            select(Tag).where(Tag.tag_id.in_(novel_data.tags))
+        )
+        new_tags = tag_result.scalars().all()
+        novel.tags = new_tags
+    
+     
+    
+    await db.commit()
+    await db.refresh(novel)
+    
+    return novel
