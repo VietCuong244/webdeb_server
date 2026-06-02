@@ -11,7 +11,7 @@ class Novel(Base):
     novel_title = Column(String, nullable=False)
     novel_author = Column(String,nullable=False)
     novel_user = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False)
-    novel_descriptionurl = Column(String, nullable=True)
+    novel_description = Column(String, nullable=True)
     novel_coverurl = Column(String, nullable=True)
     novel_series = Column(String, nullable=True)
     

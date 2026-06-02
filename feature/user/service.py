@@ -6,6 +6,8 @@ from database import get_db
 from feature.auth.schema import TokenData
 from uuid import UUID
 from feature.auth.service import verify_access_token
+from models.document import Document
+from models.novel import Novel
 from models.user import User
 
 
@@ -45,4 +47,37 @@ async def require_admin(current_user: User = Depends(require_unlocked_user)):
 async def require_owner_or_admin(user_id: UUID, current_user: User = Depends(require_unlocked_user)):
     if current_user.user_role == "admin" or current_user.user_id == user_id:
         return current_user
+    raise HTTPException(status_code=403, detail="Owner or admin privileges required")
+
+
+async def require_document_owner_or_admin(
+    document_id: UUID,
+    current_user: User = Depends(require_unlocked_user),
+    db: AsyncSession = Depends(get_db),
+):
+    document = await db.get(Document, document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    novel = await db.get(Novel, document.doc_novel_id)
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+
+    if current_user.user_role == "admin" or current_user.user_id == novel.novel_user:
+        return current_user
+
+    raise HTTPException(status_code=403, detail="Owner or admin privileges required")
+
+async def require_novel_owner_or_admin(
+    novel_id: UUID,
+    current_user: User = Depends(require_unlocked_user),
+    db: AsyncSession = Depends(get_db),
+):
+    novel = await db.get(Novel, novel_id)
+    if not novel:
+        raise HTTPException(status_code=404, detail="Novel not found")
+
+    if current_user.user_role == "admin" or current_user.user_id == novel.novel_user:
+        return current_user
+
     raise HTTPException(status_code=403, detail="Owner or admin privileges required")

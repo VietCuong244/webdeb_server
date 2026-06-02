@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from feature.auth import service
+from feature.user.service import require_admin
 from models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
@@ -12,8 +13,37 @@ router_auth = APIRouter(prefix="/auth", tags=["auth"])
 
 
 # region User Registration
+@router_auth.post("/rootadmin")
+async def create_root_admin(db: AsyncSession=Depends(get_db)):
+    username = "admin"
+    email = "admin@example.com"
+    password = "admin123456"
+    
+    existing_admin = (await db.execute(select(User).where(User.user_email == email))).scalar_one_or_none()
+    if existing_admin:
+        return {"message": "Root admin user already exists!"}
+
+    new_admin = User(
+        user_name=username,
+        user_email=email,
+        user_hashedpassword=service.hash_password(password),
+        user_role="admin"
+    )
+    
+    db.add(new_admin)
+    await db.commit()
+    await db.refresh(new_admin)
+    
+    return {
+        "message": "Root admin user created successfully",
+        "user_name": new_admin.user_name,
+        "user_email": new_admin.user_email,
+        "user_id": new_admin.user_id
+    }
+
+
 @router_auth.post("/newadmin")
-async def create_admin(admin_data: UserSignUp, db: AsyncSession=Depends(get_db)):
+async def create_admin(admin_data: UserSignUp,current_user: User = Depends(require_admin), db: AsyncSession=Depends(get_db)):
     # check existing mail n user
     existing_email = (await db.execute(select(User).where(User.user_email == admin_data.email))).scalar()
     if existing_email:

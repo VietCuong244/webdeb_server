@@ -59,7 +59,7 @@ async def get_user_avatar_and_name(user_id: UUID, db: AsyncSession = Depends(get
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return {"user_name": user.user_name,
-            "user_avatar": user.avatar_url}
+            "user_avatar": user.user_avatarurl}
 
 @router_user.get("/{user_id}")
 async def read_user_info(user_id: UUID,db: AsyncSession = Depends(get_db)):
