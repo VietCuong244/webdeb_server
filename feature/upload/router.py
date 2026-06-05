@@ -14,11 +14,12 @@ from .service import (
     update_upload_information,
 )
 from .schema import PDFUploadRequest
+from feature.common.response import DocumentStatusResponse, UploadStartResponse, UploadUpdateResponse
 
 router_upload = APIRouter(prefix="/upload", tags=["upload"])
 
 
-@router_upload.post("/pdf/start")
+@router_upload.post("/pdf/start", response_model=UploadStartResponse)
 async def start_pdf_upload(
     background_tasks: BackgroundTasks,
     pdf_file: UploadFile = File(...),
@@ -41,7 +42,10 @@ async def start_pdf_upload(
             "message": "PDF uploaded. Processing started.",
             "status": new_doc.doc_status,
             "novel_id": new_novel.novel_id,
+            "novel_title": new_novel.novel_title,
+            "novel_coverurl": new_novel.novel_coverurl,
             "document_id": new_doc.doc_id,
+            "doc_title": new_doc.doc_title,
             "doc_fileurl": new_doc.doc_fileurl,
             "doc_markdownurl": new_doc.doc_markdownurl,
         }
@@ -53,7 +57,7 @@ async def start_pdf_upload(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router_upload.post("/pdf")
+@router_upload.post("/pdf", response_model=UploadStartResponse)
 async def upload_pdf(
     background_tasks: BackgroundTasks,
     data: PDFUploadRequest = Depends(PDFUploadRequest.as_form),
@@ -94,7 +98,7 @@ async def upload_pdf(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router_upload.get("/documents/{document_id}/status")
+@router_upload.get("/documents/{document_id}/status", response_model=DocumentStatusResponse)
 async def get_document_status(document_id: UUID, current_user = Depends(require_unlocked_user), db: AsyncSession = Depends(get_db)):
     document = await db.get(Document, document_id)
     if not document:
@@ -114,7 +118,7 @@ async def get_document_status(document_id: UUID, current_user = Depends(require_
     }
 
 
-@router_upload.put("/documents/{document_id}/information")
+@router_upload.put("/documents/{document_id}/information", response_model=UploadUpdateResponse)
 async def update_document_information(
     document_id: UUID,
     data: PDFUploadRequest = Depends(PDFUploadRequest.as_form),

@@ -7,13 +7,14 @@ from models.user import User
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from .schema import UserSignUp
+from feature.common.response import AuthRegisterResponse, TokenResponse, RootAdminResponse
 
 
 router_auth = APIRouter(prefix="/auth", tags=["auth"])
 
 
 # region User Registration
-@router_auth.post("/rootadmin")
+@router_auth.post("/rootadmin", response_model=RootAdminResponse)
 async def create_root_admin(db: AsyncSession=Depends(get_db)):
     username = "admin"
     email = "admin@example.com"
@@ -21,7 +22,12 @@ async def create_root_admin(db: AsyncSession=Depends(get_db)):
     
     existing_admin = (await db.execute(select(User).where(User.user_email == email))).scalar_one_or_none()
     if existing_admin:
-        return {"message": "Root admin user already exists!"}
+        return {
+            "message": "Root admin user already exists!",
+            "user_name": existing_admin.user_name,
+            "user_email": existing_admin.user_email,
+            "user_id": existing_admin.user_id,
+        }
 
     new_admin = User(
         user_name=username,
@@ -42,7 +48,7 @@ async def create_root_admin(db: AsyncSession=Depends(get_db)):
     }
 
 
-@router_auth.post("/newadmin")
+@router_auth.post("/newadmin", response_model=AuthRegisterResponse)
 async def create_admin(admin_data: UserSignUp,current_user: User = Depends(require_admin), db: AsyncSession=Depends(get_db)):
     # check existing mail n user
     existing_email = (await db.execute(select(User).where(User.user_email == admin_data.email))).scalar()
@@ -70,7 +76,7 @@ async def create_admin(admin_data: UserSignUp,current_user: User = Depends(requi
             "user_role": new_admin.user_role}
 
 
-@router_auth.post("/signup")
+@router_auth.post("/signup", response_model=AuthRegisterResponse)
 async def signup(user_data: UserSignUp, db: AsyncSession=Depends(get_db)):
     
     # check existing mail n user
@@ -103,13 +109,8 @@ async def signup(user_data: UserSignUp, db: AsyncSession=Depends(get_db)):
 # region User Login
 
 
-@router_auth.post("/login", description="Using email and password to login")
+@router_auth.post("/login", description="Using email and password to login", response_model=TokenResponse)
 async def login(user_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession=Depends(get_db)):
-    
-    {
-    "username": "user_email",
-    "password": "user_password"
-    }
     # check user exist
     user = (await db.execute(select(User).where(User.user_email == user_data.username))).scalar()
     

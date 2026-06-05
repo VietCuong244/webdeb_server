@@ -7,6 +7,7 @@ from uuid import UUID
 from models.novel import Tag
 from models.user import User
 from .schema import TagBase
+from feature.common.response import TagActionResponse, TagListResponse
 
 
 
@@ -14,7 +15,7 @@ router_tag = APIRouter(prefix="/tag", tags=["tag"])
 
 
 
-@router_tag.post("/create_tag")
+@router_tag.post("/create_tag", response_model=TagActionResponse)
 async def create_tag(tag: TagBase, current_user: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
     existing_tag = (
         await db.execute(select(Tag).where(func.lower(Tag.tag_name) == tag.name.lower()))
@@ -40,7 +41,7 @@ async def create_tag(tag: TagBase, current_user: User = Depends(require_admin), 
         },
     }
 
-@router_tag.get("/list_tags")
+@router_tag.get("/list_tags", response_model=TagListResponse)
 async def list_tags(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Tag).order_by(Tag.tag_name))
     tags = result.scalars().all()
@@ -56,7 +57,7 @@ async def list_tags(db: AsyncSession = Depends(get_db)):
         ]
     }
 
-@router_tag.put("/update_tag/{tag_id}")
+@router_tag.put("/update_tag/{tag_id}", response_model=TagActionResponse)
 async def update_tag(tag_id: UUID, tag: TagBase, current_user: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
     existing_tag = await db.get(Tag, tag_id)
     if not existing_tag:

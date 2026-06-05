@@ -87,3 +87,4 @@ async def seed_default_tags(db: AsyncSession) -> int:
     db.add_all(new_tags)
     await db.commit()
     return len(new_tags)
+
