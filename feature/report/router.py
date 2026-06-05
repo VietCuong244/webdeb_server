@@ -52,7 +52,7 @@ async def delete_report(report_id: UUID, current_user: User = Depends(require_us
     await db.commit()
     return {"message": "Report deleted successfully"}
 
-@router_report.get("/")
+@router_report.get("/mine")
 async def get_all_reports(current_user: User = Depends(require_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Report).where(Report.report_user_id == current_user.user_id))
     return result.scalars().all()

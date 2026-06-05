@@ -3,16 +3,17 @@ from sqlalchemy import select
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from feature.auth.service import hash_password
-from feature.user.service import get_current_user, require_admin
+from feature.user.service import get_current_user
 from models.novel import Novel
 from models.user import User
 from database import get_db
-from feature.user.schema import *
+from feature.user.schema import UserUpdate
+from feature.common.response import MessageResponse, UserAvatarResponse, UserMeResponse, UserProfileResponse
 
 router_user = APIRouter(prefix="/user", tags=["user"])
 
 # region check current user
-@router_user.get("/me")
+@router_user.get("/me", response_model=UserMeResponse)
 async def read_current_user(current_user: User = Depends(get_current_user)):
     return {"user_name": current_user.user_name,
             "user_email": current_user.user_email,
@@ -20,7 +21,7 @@ async def read_current_user(current_user: User = Depends(get_current_user)):
             "user_role": current_user.user_role}
     
 
-@router_user.put("/me")
+@router_user.put("/me", response_model=MessageResponse)
 async def update_current_user(user_data: UserUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     update_data = user_data.model_dump(exclude_unset=True)
 
@@ -53,7 +54,7 @@ async def update_current_user(user_data: UserUpdate, db: AsyncSession = Depends(
 
 
 # region user information
-@router_user.get("/avatar/{user_id}/novels")
+@router_user.get("/avatar/{user_id}/novels", response_model=UserAvatarResponse)
 async def get_user_avatar_and_name(user_id: UUID, db: AsyncSession = Depends(get_db)):
     user = await db.get(User, user_id)
     if not user:
@@ -61,7 +62,7 @@ async def get_user_avatar_and_name(user_id: UUID, db: AsyncSession = Depends(get
     return {"user_name": user.user_name,
             "user_avatar": user.user_avatarurl}
 
-@router_user.get("/{user_id}")
+@router_user.get("/{user_id}", response_model=UserProfileResponse)
 async def read_user_info(user_id: UUID,db: AsyncSession = Depends(get_db)):
     user = await db.get(User, user_id)
     if not user:
@@ -78,5 +79,3 @@ async def read_user_info(user_id: UUID,db: AsyncSession = Depends(get_db)):
 
 
 # endregion
-
-

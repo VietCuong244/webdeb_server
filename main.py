@@ -26,9 +26,23 @@ app.include_router(router_report)
 async def startup():
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-    
-
     async with engine.begin() as conn:
+        await conn.execute(text("""
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name = 'novels'
+                      AND column_name = 'novel_descriptionurl'
+                ) THEN
+                    ALTER TABLE novels ADD COLUMN IF NOT EXISTS novel_description VARCHAR;
+                    UPDATE novels
+                    SET novel_description = novel_descriptionurl
+                    WHERE novel_description IS NULL;
+                END IF;
+            END $$;
+        """))
         await conn.run_sync(Base.metadata.create_all)
     async with SessionLocal() as db:
         await seed_default_tags(db)
@@ -37,5 +51,4 @@ async def startup():
 @app.get("/")
 async def root():
     return {"message": "PDF web"}
-
 
