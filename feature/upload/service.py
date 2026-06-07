@@ -4,6 +4,7 @@ import os
 import uuid
 from uuid import UUID
 
+
 from fastapi import HTTPException, UploadFile
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import SessionLocal
 from models.document import Document
 from models.novel import Novel, NoveltoTags, Tag
-
+from feature.rag.service import index_document
 
 PDF_STORAGE_PATH = "local_storage/pdf/"
 MARKDOWN_STORAGE_PATH = "local_storage/markdown/"
@@ -230,6 +231,9 @@ async def process_pdf_background(document_id, pdf_path: str, markdown_path: str,
 
             md_text = pdf_to_data(pdf_path, image_dir)
             document.doc_markdownurl = save_markdown(md_text, markdown_path)
+
+            await index_document(db, document.doc_id, md_text)
+
             document.doc_status = "completed"
             await db.commit()
         except Exception as e:

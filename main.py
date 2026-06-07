@@ -5,6 +5,7 @@ from feature.novel.router import router_novel
 from feature.upload.router import router_upload
 from feature.admin.router import router_admin
 from feature.report.router import router_report
+from feature.search.router import router_search
 
 from feature.tag.service import seed_default_tags
 import models
@@ -20,6 +21,7 @@ app.include_router(router_upload)
 app.include_router(router_novel)
 app.include_router(router_admin)
 app.include_router(router_report)
+app.include_router(router_search)
 
 
 @app.on_event("startup")

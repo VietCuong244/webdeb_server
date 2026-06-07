@@ -11,3 +11,4 @@ python-jose[cryptography]
 pgvector
 PyMuPDF
 pymupdf4llm
+google-genai
