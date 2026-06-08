@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
-from sqlalchemy import text, select
+from sqlalchemy import text, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from feature.user.service import require_admin
 from database import SessionLocal, get_db
@@ -14,8 +14,11 @@ async def lock_user(user_id: str, current_user = Depends(require_admin), db: Asy
     user = await db.get(User, user_id)
     if user.user_role == "admin":
         raise HTTPException(status_code=400, detail="Cannot lock an admin user")
-    await db.execute(text("UPDATE users SET user_is_locked = TRUE WHERE user_id = :user_id"), {"user_id": user_id})
-    await db.commit()
+    if user.user_islocked:
+        raise HTTPException(status_code=400, detail="User is already locked")
+    else:
+        await db.execute(update(User).where(User.user_id == user_id).values(user_islocked=True))
+        await db.commit()
     return {"message": "User locked successfully"}
 
 @router_admin.put("/user/{user_id}/unlock", response_model=MessageResponse)
@@ -23,7 +26,7 @@ async def unlock_user(user_id: str, current_user = Depends(require_admin), db: A
     user = await db.get(User, user_id)
     if user.user_role == "admin":
         raise HTTPException(status_code=400, detail="Cannot unlock an admin user")
-    await db.execute(text("UPDATE users SET user_is_locked = FALSE WHERE user_id = :user_id"), {"user_id": user_id})
+    await db.execute(update(User).where(User.user_id == user_id).values(user_islocked=False))
     await db.commit()
     return {"message": "User unlocked successfully"}
 
