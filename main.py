@@ -6,6 +6,8 @@ from feature.upload.router import router_upload
 from feature.admin.router import router_admin
 from feature.report.router import router_report
 from feature.search.router import router_search
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from feature.tag.service import seed_default_tags
 import models
@@ -22,6 +24,23 @@ app.include_router(router_novel)
 app.include_router(router_admin)
 app.include_router(router_report)
 app.include_router(router_search)
+
+
+# CORS configuration
+origins = [
+    "http://localhost:4200",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,       
+    allow_credentials=True,       
+    allow_methods=["*"],          
+    allow_headers=["*"],           
+)
+
+#Mount static
+app.mount("/local_storage", StaticFiles(directory="local_storage"), name="local_storage")
 
 
 @app.on_event("startup")

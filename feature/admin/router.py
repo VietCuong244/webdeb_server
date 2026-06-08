@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
-from sqlalchemy import text
+from sqlalchemy import text, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from feature.user.service import require_admin
 from database import SessionLocal, get_db
 from models.user import User
-from feature.common.response import MessageResponse
+from feature.common.response import AdminGetAllUsersResponse, MessageResponse
 
 
 router_admin = APIRouter(prefix="/admin", tags=["admin"])
@@ -35,3 +35,15 @@ async def delete_user(user_id: str, current_user = Depends(require_admin), db: A
     await db.execute(text("DELETE FROM users WHERE user_id = :user_id"), {"user_id": user_id})
     await db.commit()
     return {"message": "User deleted successfully"}
+
+@router_admin.get("/users", response_model=AdminGetAllUsersResponse)
+async def get_all_users(
+    current_user = Depends(require_admin), 
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(User))
+    users = result.scalars().all()
+    
+    return {
+        "users": users
+    }
