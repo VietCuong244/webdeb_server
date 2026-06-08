@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import SessionLocal
 from models.document import Document
 from models.novel import Novel, NoveltoTags, Tag
-from feature.rag.service import index_document
+from feature.rag.service import clean_extracted_text, index_document
 
 PDF_STORAGE_PATH = "local_storage/pdf/"
 MARKDOWN_STORAGE_PATH = "local_storage/markdown/"
@@ -229,7 +229,7 @@ async def process_pdf_background(document_id, pdf_path: str, markdown_path: str,
             document.doc_error = None
             await db.commit()
 
-            md_text = pdf_to_data(pdf_path, image_dir)
+            md_text = clean_extracted_text(pdf_to_data(pdf_path, image_dir))
             document.doc_markdownurl = save_markdown(md_text, markdown_path)
 
             await index_document(db, document.doc_id, md_text)

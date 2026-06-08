@@ -10,6 +10,19 @@ class ORMModel(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+    
+class UserResponse(BaseModel):
+    user_id: UUID
+    user_name: str
+    user_email: str
+    user_role: str | None = None
+    user_islocked: bool
+
+    model_config = ConfigDict(from_attributes=True) 
+
+
+class AdminGetAllUsersResponse(BaseModel):
+    users: list[UserResponse]
 
 
 class TokenResponse(BaseModel):

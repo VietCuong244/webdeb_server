@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -11,14 +12,50 @@ from models.document import Embedding
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 EMBEDDING_MODEL = os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text")
-CHAT_MODEL = os.getenv("GEMINI_CHAT_MODEL", "gemini-2.5-flash")
+CHAT_MODEL = os.getenv("GEMINI_CHAT_MODEL", "gemini-2.5-flash-lite")
 EMBEDDING_DIM = 768
 EMBEDDING_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
 
 gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 
+MOJIBAKE_HINTS = ("Ã", "Ä", "áº", "á»", "Â", "â€", "ï")
+
+
+def repair_mojibake(text: str) -> str:
+    if not any(hint in text for hint in MOJIBAKE_HINTS):
+        return text
+
+    original_score = sum(text.count(hint) for hint in MOJIBAKE_HINTS)
+    best_text = text
+    best_score = original_score
+
+    for encoding in ("latin1", "cp1252"):
+        try:
+            repaired = text.encode(encoding, errors="ignore").decode("utf-8", errors="ignore")
+        except UnicodeError:
+            continue
+
+        bad_score = sum(repaired.count(hint) for hint in MOJIBAKE_HINTS)
+        if bad_score < best_score:
+            best_text = repaired
+            best_score = bad_score
+
+    return best_text
+
+
+def clean_extracted_text(text: str) -> str:
+    text = repair_mojibake(text)
+    text = re.sub(r"!\[\]\([^)]+\)", " ", text)
+    text = re.sub(r"\*\*?\[:-?\d+-?:\]\*\*?", " ", text)
+    text = text.replace("\uf06e", "-")
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
 def chunk_text(text: str, chunk_size: int = 3500, overlap: int = 500) -> list[str]:
+    text = clean_extracted_text(text)
     chunks = []
     start = 0
 
@@ -152,13 +189,15 @@ async def hybrid_search(db: AsyncSession, question: str, limit: int = 8):
 
 
 def generate_answer(question: str, chunks: list[Embedding]) -> str:
-    context = "\n\n---\n\n".join(chunk.emb_chunk for chunk in chunks)
+    context = "\n\n---\n\n".join(clean_extracted_text(chunk.emb_chunk) for chunk in chunks)
 
     prompt = f"""
-You are a chatbot for reading novel/document content.
+You are a careful document QA assistant.
 
-Only answer using the CONTEXT.
-If the CONTEXT is not enough, say that there is not enough information.
+Answer in the same language as the QUESTION.
+Use only the CONTEXT.
+If the CONTEXT contains relevant facts, synthesize a useful answer.
+Only say "There is not enough information." when the CONTEXT truly does not contain the answer.
 
 CONTEXT:
 {context}
