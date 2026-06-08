@@ -2,6 +2,7 @@ import fitz as PDF
 import pymupdf4llm
 import os
 import uuid
+import asyncio
 from uuid import UUID
 
 
@@ -229,8 +230,9 @@ async def process_pdf_background(document_id, pdf_path: str, markdown_path: str,
             document.doc_error = None
             await db.commit()
 
-            md_text = clean_extracted_text(pdf_to_data(pdf_path, image_dir))
-            document.doc_markdownurl = save_markdown(md_text, markdown_path)
+            extracted_text = await asyncio.to_thread(pdf_to_data, pdf_path, image_dir)
+            md_text = clean_extracted_text(extracted_text)
+            document.doc_markdownurl = await asyncio.to_thread(save_markdown, md_text, markdown_path)
 
             await index_document(db, document.doc_id, md_text)
 
