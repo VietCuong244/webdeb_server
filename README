@@ -1,0 +1,145 @@
+DocVault Server
+===============
+
+DocVault is a FastAPI backend for uploading novels/documents, extracting PDFs to
+Markdown, indexing document chunks for RAG, and answering questions over the
+indexed content.
+
+Core features
+-------------
+
+- User authentication with JWT.
+- User, admin, tag, novel, document, upload, report, and search routers.
+- PDF upload with background processing.
+- PDF to Markdown extraction with `pymupdf4llm`.
+- PostgreSQL storage with SQLAlchemy async.
+- pgvector embeddings table for semantic search.
+- PostgreSQL full-text search over document chunks.
+- Hybrid RAG retrieval: vector search + FTS.
+- Local embeddings through Ollama using `nomic-embed-text`.
+- Gemini chat generation for final answers.
+
+Project layout
+--------------
+
+```txt
+main.py                     FastAPI app entrypoint
+database.py                 Async SQLAlchemy engine/session
+models/                     SQLAlchemy models
+feature/auth/               Login and registration
+feature/user/               Current user and profile APIs
+feature/novel/              Novel listing, detail, update, delete
+feature/tag/                Tag CRUD and default seed
+feature/upload/             PDF upload and background processing
+feature/search/             Novel search and RAG chat endpoint
+feature/rag/                Chunking, embeddings, hybrid retrieval, answer generation
+local_storage/              Uploaded PDFs, markdown files, images, covers
+```
+
+Requirements
+------------
+
+- Python 3.12+
+- Docker
+- PostgreSQL with pgvector
+- Ollama with `nomic-embed-text`
+- Gemini API key for chat responses
+
+Install
+-------
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Environment
+-----------
+
+Create `.env`:
+
+```env
+DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5433/DocVault"
+
+SECRET_KEY="change-me"
+ALGORITHM="HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES=20
+REFRESH_TOKEN_EXPIRE_MINUTES=10080
+
+GEMINI_API_KEY="your-gemini-key"
+GEMINI_CHAT_MODEL="gemini-2.5-flash"
+
+OLLAMA_BASE_URL="http://localhost:11434"
+OLLAMA_EMBEDDING_MODEL="nomic-embed-text"
+EMBEDDING_BATCH_SIZE=32
+```
+
+Local services
+--------------
+
+Start Postgres and Ollama:
+
+```bash
+docker compose up -d
+```
+
+Pull the embedding model into Ollama:
+
+```bash
+docker exec -it docvault-ollama ollama pull nomic-embed-text
+```
+
+Run the API
+-----------
+
+```bash
+uvicorn main:app --reload
+```
+
+Open docs:
+
+```txt
+http://127.0.0.1:8000/docs
+```
+
+Common flow
+-----------
+
+1. Start Docker services.
+2. Pull `nomic-embed-text`.
+3. Start FastAPI.
+4. Create/login user.
+5. Upload PDF with `/upload/pdf`.
+6. Poll `/upload/documents/{document_id}/status`.
+7. Ask questions with `/search/chat`.
+
+Upload and RAG flow
+-------------------
+
+```txt
+PDF upload
+-> save PDF and cover
+-> create Novel + Document rows
+-> background task starts
+-> extract PDF to Markdown
+-> save Markdown
+-> chunk Markdown
+-> embed chunks with Ollama/Nomic
+-> save chunks + vectors in embeddings table
+-> document status becomes completed
+-> /search/chat retrieves chunks and asks Gemini to answer
+```
+
+Notes
+-----
+
+- `nomic-embed-text` is only used for embeddings. It does not generate chat
+  answers.
+- Gemini is used for answer generation.
+- The embedding dimension is expected to be 768 because the database model uses
+  `Vector(768)`.
+- If FastAPI cannot reach Ollama at `localhost`, set `OLLAMA_BASE_URL` to the
+  reachable host IP.
+- This project currently uses `Base.metadata.create_all` on startup. For a
+  production project, replace that with migrations.

@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: docvault-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: DocVault
+    ports:
+      - "5433:5432"
+    volumes:
+      - docvault_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d DocVault"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: docvault-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - docvault_ollama_data:/root/.ollama
+
+volumes:
+  docvault_postgres_data:
+  docvault_ollama_data:
