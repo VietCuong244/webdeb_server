@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import asyncio
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -130,7 +131,7 @@ async def index_document(db: AsyncSession, document_id, markdown_text: str):
         f"Represent this document chunk for retrieval:\n{chunk}"
         for chunk in chunks
     ]
-    vectors = embed_texts_in_batches(embed_inputs)
+    vectors = await asyncio.to_thread(embed_texts_in_batches, embed_inputs)
 
     for chunk, vector in zip(chunks, vectors):
         db.add(Embedding(
@@ -149,7 +150,7 @@ def embed_query(question: str) -> list[float]:
 
 
 async def vector_search(db: AsyncSession, question: str, limit: int = 8):
-    query_vector = embed_query(question)
+    query_vector = await asyncio.to_thread(embed_query, question)
 
     result = await db.execute(
         select(Embedding)
@@ -212,3 +213,7 @@ QUESTION:
     )
 
     return response.text
+
+
+async def generate_answer_async(question: str, chunks: list[Embedding]) -> str:
+    return await asyncio.to_thread(generate_answer, question, chunks)

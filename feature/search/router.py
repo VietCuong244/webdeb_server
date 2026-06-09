@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from feature.common.response import NovelInfoResponse
 from feature.search.schema import ChatSearchRequest, ChatSearchResponse
 from models.novel import Novel, Tag
-from feature.rag.service import clean_extracted_text, generate_answer, hybrid_search
+from feature.rag.service import clean_extracted_text, generate_answer_async, hybrid_search
 
 router_search = APIRouter(prefix="/search", tags=["search"])
 
@@ -42,7 +42,7 @@ async def search_novels(query: str, db: AsyncSession = Depends(get_db)):
 @router_search.post("/chat", response_model=ChatSearchResponse)
 async def chat_search(data: ChatSearchRequest, db: AsyncSession = Depends(get_db)):
     chunks = await hybrid_search(db, data.question, data.limit)
-    answer = generate_answer(data.question, chunks)
+    answer = await generate_answer_async(data.question, chunks)
 
     return {
         "answer": answer,
