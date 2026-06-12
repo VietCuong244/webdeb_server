@@ -4,6 +4,7 @@ import re
 import asyncio
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from uuid import UUID
 
 from google import genai
 from sqlalchemy import delete, func, select
@@ -149,34 +150,43 @@ def embed_query(question: str) -> list[float]:
     ])[0]
 
 
-async def vector_search(db: AsyncSession, question: str, limit: int = 8):
+async def vector_search(db: AsyncSession, question: str, top_k: int = 8, doc_ids: list[UUID] | None = None):
+    if doc_ids is not None and not doc_ids:
+        return []
+
     query_vector = await asyncio.to_thread(embed_query, question)
 
+    stmt = select(Embedding)
+    if doc_ids is not None:
+        stmt = stmt.where(Embedding.doc_id.in_(doc_ids))
+
     result = await db.execute(
-        select(Embedding)
-        .order_by(Embedding.emb_vector.cosine_distance(query_vector))
-        .limit(limit)
+        stmt.order_by(Embedding.emb_vector.cosine_distance(query_vector)).limit(top_k)
     )
 
     return result.scalars().all()
 
 
-async def fts_search(db: AsyncSession, question: str, limit: int = 8):
+async def fts_search(db: AsyncSession, question: str, top_k: int = 8, doc_ids: list[UUID] | None = None):
+    if doc_ids is not None and not doc_ids:
+        return []
+
     query = func.plainto_tsquery("simple", question)
 
+    stmt = select(Embedding).where(Embedding.emb_fts.op("@@")(query))
+    if doc_ids is not None:
+        stmt = stmt.where(Embedding.doc_id.in_(doc_ids))
+
     result = await db.execute(
-        select(Embedding)
-        .where(Embedding.emb_fts.op("@@")(query))
-        .order_by(func.ts_rank_cd(Embedding.emb_fts, query).desc())
-        .limit(limit)
+        stmt.order_by(func.ts_rank_cd(Embedding.emb_fts, query).desc()).limit(top_k)
     )
 
     return result.scalars().all()
 
 
-async def hybrid_search(db: AsyncSession, question: str, limit: int = 8):
-    vector_results = await vector_search(db, question, limit)
-    fts_results = await fts_search(db, question, limit)
+async def hybrid_search(db: AsyncSession, question: str, top_k: int = 8, doc_ids: list[UUID] | None = None):
+    vector_results = await vector_search(db, question, top_k, doc_ids)
+    fts_results = await fts_search(db, question, top_k, doc_ids)
 
     merged = []
     seen = set()
@@ -186,11 +196,12 @@ async def hybrid_search(db: AsyncSession, question: str, limit: int = 8):
             merged.append(item)
             seen.add(item.emb_id)
 
-    return merged[:limit]
+    return merged[:top_k]
 
 
-def generate_answer(question: str, chunks: list[Embedding]) -> str:
+def generate_answer(question: str, chunks: list[Embedding], history: list[str] | None = None) -> str:
     context = "\n\n---\n\n".join(clean_extracted_text(chunk.emb_chunk) for chunk in chunks)
+    chat_history = "\n".join(history or [])
 
     prompt = f"""
 You are a careful document QA assistant.
@@ -199,6 +210,10 @@ Answer in the same language as the QUESTION.
 Use only the CONTEXT.
 If the CONTEXT contains relevant facts, synthesize a useful answer.
 Only say "There is not enough information." when the CONTEXT truly does not contain the answer.
+Use CHAT HISTORY only to understand references in the QUESTION. Do not treat it as source truth.
+
+CHAT HISTORY:
+{chat_history}
 
 CONTEXT:
 {context}
@@ -215,5 +230,5 @@ QUESTION:
     return response.text
 
 
-async def generate_answer_async(question: str, chunks: list[Embedding]) -> str:
-    return await asyncio.to_thread(generate_answer, question, chunks)
+async def generate_answer_async(question: str, chunks: list[Embedding], history: list[str] | None = None) -> str:
+    return await asyncio.to_thread(generate_answer, question, chunks, history)
