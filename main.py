@@ -6,6 +6,7 @@ from feature.upload.router import router_upload
 from feature.admin.router import router_admin
 from feature.report.router import router_report
 from feature.search.router import router_search
+from feature.chatbot.router import router_chatbot
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -24,6 +25,7 @@ app.include_router(router_novel)
 app.include_router(router_admin)
 app.include_router(router_report)
 app.include_router(router_search)
+app.include_router(router_chatbot)
 
 
 # CORS configuration
@@ -72,4 +74,3 @@ async def startup():
 @app.get("/")
 async def root():
     return {"message": "PDF web"}
-
